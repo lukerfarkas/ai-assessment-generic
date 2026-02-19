@@ -2217,57 +2217,35 @@ function simulateAndSkip() {
   });
 
   // --- Choose a target fluency profile ---
-  // Pick a base level for the healthy subsystems (2-5) and bottleneck = base - 1
+  // Exactly 1 level max difference across all 4 subsystems.
+  // 3 subsystems share a base level, 1 bottleneck is exactly 1 below.
   const subsystems = ['F1','F2','F3','F4'];
   const bottleneck = pick(subsystems);
   const baseLevel = rnd(2, 5);  // Healthy subsystems target this level
   const bnLevel = baseLevel - 1; // Bottleneck is exactly 1 below
 
-  // Map fluency levels to target composite score ranges (0-100)
-  // Scoring thresholds: <25→L1, <45→L2, <70→L3, <88→L4, ≥88→L5
-  // We target the middle of each band to land reliably
-  const levelToScore = { 1: [8, 20], 2: [30, 40], 3: [50, 65], 4: [72, 84], 5: [90, 96] };
+  // Tight CAP answer ranges per target level (no jitter — stay inside the band)
+  // Scoring: CAP (val-1)*25 → 0-100. Thresholds: <25→L1, <45→L2, <70→L3, <88→L4, ≥88→L5
+  // We pick CAP answers that reliably land in the target band's sweet spot.
+  const capForLevel = { 1: [1, 1], 2: [2, 2], 3: [3, 3], 4: [4, 4], 5: [5, 5] };
 
-  // Composite = 0.7*CAP + 0.3*ART, so we generate CAP & ART to hit the target
-  // CAP uses 1-5 scale → 0-100: (val-1)*25. ART uses 1-4 scale → 0-100: [0,33,67,100]
-  // CAP answer mapping: 1→0, 2→25, 3→50, 4→75, 5→100
-  // For a target score S, we aim CAP ≈ S and ART ≈ S
-
-  function capAnswerForScore(targetScore) {
-    // targetScore 0-100, return CAP answer 1-5
-    if (targetScore < 12) return 1;
-    if (targetScore < 38) return 2;
-    if (targetScore < 62) return 3;
-    if (targetScore < 88) return 4;
-    return 5;
-  }
-  function artAnswerForScore(targetScore) {
-    // targetScore 0-100, return ART answer 1-4
-    if (targetScore < 17) return 1;
-    if (targetScore < 50) return 2;
-    if (targetScore < 83) return 3;
-    return 4;
-  }
+  // Tight ART answer ranges per target level
+  // Scoring: ART 1→0, 2→33, 3→67, 4→100. Composite = 0.7*CAP + 0.3*ART
+  // We pick ART answers that reinforce the same band as CAP.
+  const artForLevel = { 1: [1, 1], 2: [2, 2], 3: [3, 3], 4: [3, 4], 5: [4, 4] };
 
   // --- Simulate CAP responses (24 items) ---
   CAP_ITEMS.forEach(item => {
-    const level = item.subsystem === bottleneck ? bnLevel : baseLevel;
-    const range = levelToScore[level];
-    const target = rnd(range[0], range[1]);
-    // Add slight randomness: ±1 answer from target
-    const base = capAnswerForScore(target);
-    const jitter = rnd(-1, 1);
-    state.responses[item.id] = Math.max(1, Math.min(5, base + jitter));
+    const lvl = item.subsystem === bottleneck ? bnLevel : baseLevel;
+    const range = capForLevel[lvl];
+    state.responses[item.id] = rnd(range[0], range[1]);
   });
 
   // --- Simulate ART responses (12 items) ---
   ART_ITEMS.forEach(item => {
-    const level = item.subsystem === bottleneck ? bnLevel : baseLevel;
-    const range = levelToScore[level];
-    const target = rnd(range[0], range[1]);
-    const base = artAnswerForScore(target);
-    const jitter = rnd(0, 1); // ART has only 4 options so less jitter
-    state.responses[item.id] = Math.max(1, Math.min(4, base + jitter));
+    const lvl = item.subsystem === bottleneck ? bnLevel : baseLevel;
+    const range = artForLevel[lvl];
+    state.responses[item.id] = rnd(range[0], range[1]);
   });
 
   // --- QC: always pass ---
