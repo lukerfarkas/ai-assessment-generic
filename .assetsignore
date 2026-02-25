@@ -1,0 +1,5 @@
+.git/
+.wrangler/
+wrangler.toml
+sheets_backend.gs
+*.md
