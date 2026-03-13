@@ -960,7 +960,7 @@ function renderContext(el, q) {
         <div class="text-input-wrapper">
           <input type="text" class="text-input" id="textInput" placeholder="Type your answer..." value="${state.responses[q.id] || ''}" />
         </div>
-        <span class="skip-link" onclick="skipQuestion('${q.id}')">Skip this question</span>
+        ${q.optional ? '<span class="skip-link" onclick="skipQuestion(\'' + q.id + '\')">Skip this question</span>' : ''}
         ${navFooter('Press Enter to continue')}
       </div>
     `;
