@@ -2108,7 +2108,10 @@ function isCurrentScreenAnswered() {
     case 'welcome': case 'interstitial': case 'results': return true;
     case 'context':
       if (screen.question.optional) return true;
-      if (screen.question.type === 'text') return true;
+      if (screen.question.type === 'text') {
+        const inp = document.getElementById('textInput');
+        return inp ? inp.value.trim().length > 0 : (state.responses[screen.question.id] || '').toString().trim().length > 0;
+      }
       return state.responses[screen.question.id] !== undefined;
     case 'posture-single': case 'capability-single': case 'artifact-single':
       return state.responses[screen.item.id] !== undefined;
@@ -2180,7 +2183,8 @@ function simulateAndSkip() {
 
   // --- Simulate Context responses ---
   CONTEXT_QUESTIONS.forEach(q => {
-    if (q.type === 'text') { state.responses[q.id] = ''; }
+    if (q.id === 'CON-000') { state.responses[q.id] = 'Sim User ' + rnd(1000, 9999); }
+    else if (q.type === 'text') { state.responses[q.id] = ''; }
     else { state.responses[q.id] = pick(q.options).key; }
   });
 
