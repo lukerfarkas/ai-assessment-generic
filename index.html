@@ -457,6 +457,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--orange); ou
 // ============================================================
 
 const CONTEXT_QUESTIONS = [
+  { id: 'CON-000', text: 'What is your first and last name?', type: 'text' },
   { id: 'CON-001', text: 'For analysis purposes, which group best describes you?',
     options: [
       { key: 'A', text: 'Executive / VP+', value: 'exec' },
@@ -2321,6 +2322,7 @@ function buildSubmissionRow(scores) {
   const r = state.responses;
   const row = {
     timestamp: new Date().toISOString(),
+    name: r['CON-000'] || '',
     role: getContextLabel('CON-001', r['CON-001']),
     func: getContextLabel('CON-002', r['CON-002']),
     aiUsage: getContextLabel('CON-003', r['CON-003']),
