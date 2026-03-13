@@ -2309,7 +2309,7 @@ const ALL_VIG_IDS = VIGNETTES.map(v => v.id);
 
 // CSV/Sheet column headers (flat, readable)
 const SUBMISSION_HEADERS = [
-  'Timestamp', 'Role', 'Function', 'AI Usage Frequency', 'AI Involvement', 'Business Unit',
+  'Timestamp', 'Name', 'Role', 'Function', 'AI Usage Frequency', 'AI Involvement', 'Business Unit',
   'Dominant Archetype', 'Secondary Archetype',
   'P1 Athlete', 'P2 Builder', 'P3 Steward', 'P4 Integrator', 'P5 Optimizer', 'P6 Visionary', 'P7 Skeptic',
   'Overall Fluency Level', 'Overall Fluency Score',
@@ -2356,7 +2356,7 @@ function buildSubmissionRow(scores) {
 
 function submissionToArray(row) {
   return [
-    row.timestamp, row.role, row.func, row.aiUsage, row.involvement, row.businessUnit,
+    row.timestamp, row.name, row.role, row.func, row.aiUsage, row.involvement, row.businessUnit,
     row.dominantArchetype, row.secondaryArchetype,
     row.p1Score, row.p2Score, row.p3Score, row.p4Score, row.p5Score, row.p6Score, row.p7Score,
     row.fluencyLevel, row.fluencyScore,
