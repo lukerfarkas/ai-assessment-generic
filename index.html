@@ -1150,6 +1150,7 @@ function navFooter(hint) {
 }
 
 function calculateScores() {
+  if (window._previewScores) return window._previewScores;
   const scores = {
     posture: {}, posturePST: {}, postureVig: {}, postureFinal: {},
     capability: {}, artifact: {}, fluency: {},
@@ -2171,8 +2172,39 @@ function restartSurvey() {
 //  SHAREABLE PROFILE PREVIEW
 // ============================================================
 
+// Exact scores for named shareable profiles (sourced from real data)
+const SHAREABLE_PROFILES = {
+  'optimizer-steward-3': {
+    posturePST: {P1:0,P2:0,P3:0,P4:0,P5:0,P6:0,P7:0},
+    postureVig: {P1:0,P2:0,P3:0,P4:0,P5:0,P6:0,P7:0},
+    postureFinal: {P1:60,P2:28,P3:62,P4:52,P5:67,P6:43,P7:45},
+    capability: {F1:68,F2:34,F3:64,F4:47},
+    artifact:   {F1:68,F2:34,F3:64,F4:47},
+    fluency:    {F1:68,F2:34,F3:64,F4:47},
+    fluencyLevels: {F1:3,F2:2,F3:3,F4:3},
+    overallFluencyLevel: 3,
+    overallFluency: 53,
+    visibilityGaps: {F1:0,F2:0,F3:0,F4:0},
+    dominantArchetype: 'P5',
+    secondaryArchetype: 'P3',
+    qcPassed: true,
+    isPreview: true
+  }
+};
+
 function loadShareableProfile(previewParam) {
-  // Parse "optimizer-steward-3" → { dominant:'optimizer', secondary:'steward', level:3 }
+  // Check for exact named profile first
+  if (SHAREABLE_PROFILES[previewParam]) {
+    window._previewScores = SHAREABLE_PROFILES[previewParam];
+    state.currentScreen = state.totalScreens - 1;
+    saveState();
+    renderScreen();
+    const btn = document.getElementById('skipSimBtn');
+    if (btn) btn.style.display = 'none';
+    return;
+  }
+
+  // Generic algorithmic fallback: parse "dominant-secondary-level"
   const parts = previewParam.split('-');
   if (parts.length < 3) { renderScreen(); return; }
   const level = parseInt(parts[parts.length - 1]);
@@ -2197,50 +2229,35 @@ function loadShareableProfile(previewParam) {
   state.responses['CON-004'] = 'A';
   state.responses['CON-005'] = '';
 
-  // PST: dominant & secondary both score 75 (PST raw=4 non-reverse, raw=2 reverse)
-  // so their gap comes only from vignettes (~5.7 pts), keeping gap ≤7 for secondary to show.
-  // Other archetypes score 25 (PST raw=2 non-reverse, raw=4 reverse).
+  // PST: dominant & secondary both score 75 so gap comes only from vignettes (~5.7) ≤ 7
   PST_ITEMS.forEach(item => {
     if (item.construct === domC || item.construct === secC) {
-      state.responses[item.id] = item.reverse ? 2 : 4;  // → score 75
+      state.responses[item.id] = item.reverse ? 2 : 4;
     } else {
-      state.responses[item.id] = item.reverse ? 4 : 2;  // → score 25
+      state.responses[item.id] = item.reverse ? 4 : 2;
     }
   });
 
-  // Vignettes: 4 picks dominant, 2 secondary, 1 a neutral other
-  // postureFinal gap: 0.8*(75-75) + 0.2*(4/7-2/7)*100 ≈ 5.7 ≤ 7 → secondary shows
+  // Vignettes: 4 dominant, 2 secondary, 1 other
   VIGNETTES.forEach((vig, idx) => {
-    let targetNum;
-    if (idx < 4) targetNum = domNum;
-    else if (idx < 6) targetNum = secNum;
-    else {
-      // Pick first construct that isn't dominant or secondary
+    if (idx >= 6) {
       const other = vig.options.find(o => o.construct !== domNum && o.construct !== secNum);
       state.responses[vig.id] = other ? other.key : vig.options[0].key;
       return;
     }
+    const targetNum = idx < 4 ? domNum : secNum;
     const opt = vig.options.find(o => o.construct === targetNum);
     state.responses[vig.id] = opt ? opt.key : vig.options[0].key;
   });
 
-  // Fluency: F1 is bottleneck at (level-1), F2/F3/F4 at target level.
-  // Cap level at 1 minimum. Gap is always exactly 1 → consistent overall = target level.
+  // Fluency: bottleneck F1 at level-1, others at target level
   const baseL = Math.max(1, Math.min(5, level));
   const bnL = Math.max(1, baseL - 1);
-  // CAP answer that lands in each level band (no jitter)
-  const capAns = { 1:1, 2:2, 3:3, 4:4, 5:5 };
-  // ART answer that reinforces same band (1-4 scale)
-  const artAns = { 1:1, 2:2, 3:3, 4:3, 5:4 };
+  const capAns = {1:1,2:2,3:3,4:4,5:5};
+  const artAns = {1:1,2:2,3:3,4:3,5:4};
+  CAP_ITEMS.forEach(item => { state.responses[item.id] = capAns[item.subsystem === 'F1' ? bnL : baseL]; });
+  ART_ITEMS.forEach(item => { state.responses[item.id] = artAns[item.subsystem === 'F1' ? bnL : baseL]; });
 
-  CAP_ITEMS.forEach(item => {
-    state.responses[item.id] = capAns[item.subsystem === 'F1' ? bnL : baseL];
-  });
-  ART_ITEMS.forEach(item => {
-    state.responses[item.id] = artAns[item.subsystem === 'F1' ? bnL : baseL];
-  });
-
-  // QC always passes
   state.responses['QC-001'] = 4;
   state.responses['QC-002'] = 'B';
 
@@ -2248,7 +2265,6 @@ function loadShareableProfile(previewParam) {
   saveState();
   renderScreen();
 
-  // Hide the skip button — not needed on a pre-loaded profile
   const btn = document.getElementById('skipSimBtn');
   if (btn) btn.style.display = 'none';
 }
@@ -2460,6 +2476,7 @@ function submissionToArray(row) {
 }
 
 async function saveSubmission(scores) {
+  if (scores.isPreview) return;
   const row = buildSubmissionRow(scores);
 
   // Deduplicate hash
