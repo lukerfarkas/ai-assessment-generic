@@ -2168,6 +2168,92 @@ function restartSurvey() {
 }
 
 // ============================================================
+//  SHAREABLE PROFILE PREVIEW
+// ============================================================
+
+function loadShareableProfile(previewParam) {
+  // Parse "optimizer-steward-3" → { dominant:'optimizer', secondary:'steward', level:3 }
+  const parts = previewParam.split('-');
+  if (parts.length < 3) { renderScreen(); return; }
+  const level = parseInt(parts[parts.length - 1]);
+  const secondary = parts[parts.length - 2];
+  const dominant = parts.slice(0, parts.length - 2).join('-');
+
+  const nameToConstruct = {
+    athlete:'P1', builder:'P2', steward:'P3', integrator:'P4',
+    optimizer:'P5', visionary:'P6', skeptic:'P7'
+  };
+  const domC = nameToConstruct[dominant];
+  const secC = nameToConstruct[secondary];
+  if (!domC || !secC || isNaN(level)) { renderScreen(); return; }
+  const domNum = parseInt(domC.slice(1));
+  const secNum = parseInt(secC.slice(1));
+
+  // Name & context
+  state.responses['CON-000'] = 'Sample Profile';
+  state.responses['CON-001'] = 'A';
+  state.responses['CON-002'] = 'E';
+  state.responses['CON-003'] = 'A';
+  state.responses['CON-004'] = 'A';
+  state.responses['CON-005'] = '';
+
+  // PST: dominant & secondary both score 75 (PST raw=4 non-reverse, raw=2 reverse)
+  // so their gap comes only from vignettes (~5.7 pts), keeping gap ≤7 for secondary to show.
+  // Other archetypes score 25 (PST raw=2 non-reverse, raw=4 reverse).
+  PST_ITEMS.forEach(item => {
+    if (item.construct === domC || item.construct === secC) {
+      state.responses[item.id] = item.reverse ? 2 : 4;  // → score 75
+    } else {
+      state.responses[item.id] = item.reverse ? 4 : 2;  // → score 25
+    }
+  });
+
+  // Vignettes: 4 picks dominant, 2 secondary, 1 a neutral other
+  // postureFinal gap: 0.8*(75-75) + 0.2*(4/7-2/7)*100 ≈ 5.7 ≤ 7 → secondary shows
+  VIGNETTES.forEach((vig, idx) => {
+    let targetNum;
+    if (idx < 4) targetNum = domNum;
+    else if (idx < 6) targetNum = secNum;
+    else {
+      // Pick first construct that isn't dominant or secondary
+      const other = vig.options.find(o => o.construct !== domNum && o.construct !== secNum);
+      state.responses[vig.id] = other ? other.key : vig.options[0].key;
+      return;
+    }
+    const opt = vig.options.find(o => o.construct === targetNum);
+    state.responses[vig.id] = opt ? opt.key : vig.options[0].key;
+  });
+
+  // Fluency: F1 is bottleneck at (level-1), F2/F3/F4 at target level.
+  // Cap level at 1 minimum. Gap is always exactly 1 → consistent overall = target level.
+  const baseL = Math.max(1, Math.min(5, level));
+  const bnL = Math.max(1, baseL - 1);
+  // CAP answer that lands in each level band (no jitter)
+  const capAns = { 1:1, 2:2, 3:3, 4:4, 5:5 };
+  // ART answer that reinforces same band (1-4 scale)
+  const artAns = { 1:1, 2:2, 3:3, 4:3, 5:4 };
+
+  CAP_ITEMS.forEach(item => {
+    state.responses[item.id] = capAns[item.subsystem === 'F1' ? bnL : baseL];
+  });
+  ART_ITEMS.forEach(item => {
+    state.responses[item.id] = artAns[item.subsystem === 'F1' ? bnL : baseL];
+  });
+
+  // QC always passes
+  state.responses['QC-001'] = 4;
+  state.responses['QC-002'] = 'B';
+
+  state.currentScreen = state.totalScreens - 1;
+  saveState();
+  renderScreen();
+
+  // Hide the skip button — not needed on a pre-loaded profile
+  const btn = document.getElementById('skipSimBtn');
+  if (btn) btn.style.display = 'none';
+}
+
+// ============================================================
 //  SIMULATE & SKIP TO RESULTS
 // ============================================================
 
@@ -2574,9 +2660,12 @@ const SHEETS_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbzXtq9QnwoXV
 loadState();
 buildScreens();
 
-// Admin route check — supports both /admin path and ?admin=true query param
-if (window.location.pathname.replace(/\/$/, '').endsWith('/admin') || new URLSearchParams(window.location.search).get('admin') === 'true') {
+// Route check
+const _params = new URLSearchParams(window.location.search);
+if (window.location.pathname.replace(/\/$/, '').endsWith('/admin') || _params.get('admin') === 'true') {
   renderAdmin();
+} else if (_params.get('preview')) {
+  loadShareableProfile(_params.get('preview'));
 } else {
   renderScreen();
 }
